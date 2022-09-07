@@ -1,0 +1,74 @@
+[enterprise]
+api_key = "${DD_API_KEY}"
+configuration_key = "${DD_CONFIGURATION_KEY}"
+site = "datadoghq.com"
+
+[api]
+enabled = true
+address = "0.0.0.0:8686"
+
+[sources.dd_agents]
+type = "datadog_agent"
+address = "0.0.0.0:8080"
+multiple_outputs = true
+
+[transforms.filter_metrics]
+type = "filter"
+inputs = ["dd_agents.metrics"]
+condition = '''
+   if match(.namespace, r'nnn') ?? false { 
+      .name != "sales.90percentile" && .name != "sales.99percentile" && .name != "sales.95percentile"
+}
+'''
+
+[transforms.remove_metric_tags]
+type = "remap"
+inputs = ["filter_metrics"]
+source = '''
+   if match(.namespace, r'nnn') ?? false {
+      del(.tags.timestamp)
+      del(.tags.shopid)
+      del(.tags.sales)
+      del(.tags.sessionid)
+}
+'''
+
+[transforms.dd_tag_metrics]
+type = "remap"
+inputs = ["remove_metric_tags"]
+source = '''
+  .tags.sender = "vector"
+'''
+
+[sinks.metrics_to_datadog]
+type = "datadog_metrics"
+inputs = ["dd_tag_metrics"]
+default_api_key = "${DD_API_KEY}"
+
+[transforms.merge_log]
+type = "reduce"
+inputs = ["dd_agents.logs"]
+#starts_when = "match(string!(.message), r'cm_metric')"
+ends_when = "match(string!(.message), r'tag')"
+
+   [transforms.merge_log.merge_strategies]
+   message = "concat_newline"
+
+[transforms.dd_tag_logs]
+type = "remap"
+inputs = ["merge_log"]
+source = '''
+ .ddtags = string!(.ddtags) + ",sender:vector"
+'''
+
+[sinks.logs_to_datadog]
+type = "datadog_logs"
+inputs = ["dd_tag_logs"]
+default_api_key = "${DD_API_KEY}"
+compression = "gzip"
+
+[sinks.console]
+inputs = ["dd_tag_metrics", "dd_tag_logs"]
+target = "stdout"
+type = "console"
+encoding.codec = "json"

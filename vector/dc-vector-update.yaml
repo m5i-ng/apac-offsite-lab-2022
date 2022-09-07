@@ -1,0 +1,17 @@
+version: '3'
+services:
+  vector:
+    image: timberio/vector:0.24.0-alpine
+    container_name: vector
+    environment:
+      - DD_API_KEY=xxxxxxxx # Update your api key
+    volumes:
+      - ./vector.toml.update:/etc/vector/vector.toml
+    ports:
+      - 8080:8080/tcp
+      - 8686:8686/tcp
+    networks:
+      - my-dd-network
+networks:
+   my-dd-network:
+     external: true

@@ -1,0 +1,44 @@
+version: '3'
+services:
+  dd-agent:
+    container_name: dd-agent
+    image: "datadog/agent:7.35.0"
+    environment:
+      - DD_SITE
+      - DD_API_KEY
+      - DD_HOSTNAME=obs-pipeline-myhost
+      - DD_TAGS="lab:obs-pipeline"
+      ## Add vector config
+      - DD_VECTOR_METRICS_URL=http://vector:8080
+      - DD_VECTOR_METRICS_ENABLED=true
+      - DD_VECTOR_LOGS_URL=http://vector:8080
+      - DD_VECTOR_LOGS_ENABLED=true
+      ## LOGS
+      - DD_LOGS_ENABLED=true
+      - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=true
+      - DD_CONTAINER_EXCLUDE=name:dd-agent
+      - DD_CONTAINER_EXCLUDE_LOGS=name:vector
+      ## DOGSTATSD
+      - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true
+      - DD_HISTOGRAM_PERCENTILES=0.90 0.95 0.99
+    ports:
+      - 8125:8125/udp # for Dogstatsd
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /opt/datadog-agent/run:/opt/datadog-agent/run:rw
+    networks:
+      - my-dd-network
+  cm_sample:
+    container_name: cm_sample
+    environment:
+      - DOGSTATSD_HOST=dd-agent
+      - DOGSTATSD_PORT=8125
+    image: min499/cm_py:latest
+    depends_on:
+      - dd-agent
+    networks:
+      - my-dd-network
+networks:
+   my-dd-network:
+     external: true

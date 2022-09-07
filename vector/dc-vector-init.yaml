@@ -1,0 +1,15 @@
+version: '3'
+services:
+  vector:
+    image: timberio/vector:0.24.0-alpine
+    container_name: vector
+    volumes:
+      - ./vector.toml.init:/etc/vector/vector.toml
+    ports:
+      - 8080:8080/tcp #datadog_agent
+      - 8686:8686/tcp #api
+    networks:
+      - my-dd-network
+networks:
+   my-dd-network:
+     external: true
